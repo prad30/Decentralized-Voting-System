@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voter verification</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Patriot+One&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: 'Patriot One', sans-serif;
+        }
+        body{
+            background-image: url("static/asset/bg.png");
+            background-size: cover;
+        }
+
+        .registercontainer {
+            padding: 0 20px 20px 20px;
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .india-map {
+            width: 50%;
+            height: auto;
+            position: absolute;
+            left: 0;
+            opacity: 0.2;
+        }
+
+        .container {
+            margin-top: 20px;
+            background: white;
+            background: transparent;
+            border-radius: 30px;
+            border: 1px solid #002642;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.4);
+            padding: 40px 25px;
+            width: 100%;
+            max-width: 600px;
+            transition: 0.3s ease;
+            text-align: center;
+            z-index: 10;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin-bottom: 8px;
+            color: #012548;
+            font-size: 16px;
+        }
+
+        input,
+        button {
+            z-index: 100;
+            outline: none;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #002642;
+            border-radius: 6px;
+            font-family: 'Patriot One', sans-serif;
+            transition: 0.3s;
+            color: #002642;
+        }
+
+        input:focus,
+        button:focus {
+            outline: none;
+            border-color: #012136;
+            box-shadow: 0 0 8px rgba(0, 42, 69, 0.5);
+        }
+
+        button,
+        #registerBtn {
+            width: 100%;
+            border: 2px solid #455466;
+            background: #455466;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            padding: 10px 25px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        button:hover,
+        #registerBtn:hover {
+            border: 2px solid #002D62;
+            background: transparent;
+            color: #002D62;
+        }
+
+        #video,
+        #canvas,
+        #capturedImage {
+            width: 45%;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            font-size: 40px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="registercontainer">
+        <h2>Voter Registration Form</h2>
+        <div class="container">
+            <form id="registrationForm">
+                <label for="aid">Aadhaar ID:</label>
+                <input name="aid" id="aid" type="text" required placeholder="12-digit Aadhaar number">
+
+                <label for="dob">Date of Birth:</label>
+                <input name="dob" id="dob" type="date" required>
+
+                <div>
+                    <video id="video" autoplay></video>
+                    <button type="button" id="captureBtn">Capture Face</button>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                    <img id="capturedImage" alt="Captured Face" style="display:none;">
+                </div>
+
+                <input id="registerBtn" type="submit" value="Register Voter" disabled>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const capturedImageElem = document.getElementById('capturedImage');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(err => console.error("Error accessing webcam:", err));
+
+        document.getElementById('captureBtn').addEventListener('click', function () {
+            let canvas = document.getElementById('canvas');
+            let context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            let capturedImage = canvas.toDataURL('image/png');
+            let aadhaarID = document.getElementById('aid').value;
+            let dob = document.getElementById('dob').value;
+
+            if (!aadhaarID || !dob) {
+                alert("Please enter Aadhaar ID and Date of Birth before capturing.");
+                return;
+            }
+
+            capturedImageElem.src = capturedImage;
+            capturedImageElem.style.display = "block";
+
+            document.getElementById('registerBtn').disabled = false;
+            sessionStorage.setItem("capturedImage", capturedImage);
+        });
+
+        document.getElementById('registrationForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            let aadhaarID = document.getElementById('aid').value;
+            let dob = document.getElementById('dob').value;
+            let capturedImage = sessionStorage.getItem("capturedImage");
+
+            if (!capturedImage || !aadhaarID || !dob) {
+                alert("Please fill all fields and capture your face before registering.");
+                return;
+            }
+
+            fetch('/register_voter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ aid: aadhaarID, dob: dob, image: capturedImage })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    </script>
+
+</body>
+
+</html>
